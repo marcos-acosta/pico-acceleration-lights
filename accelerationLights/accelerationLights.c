@@ -42,8 +42,10 @@ static double scaleToG(double val) {
   return val * 2 / 32767;
 }
 
-static float curbValue(double val, float alpha) {
-  return 1 - exp(-alpha * val);
+static double boundValue(double val, double limit, double alpha) {
+  int outerSign = val >= 0 ? 1 : -1;
+  int exponentialSign = val >= 0 ? -1 : 1;
+  return outerSign * limit * (1 - exp(exponentialSign * alpha * val));
 }
 
 static void mpu6050_reset() {
@@ -115,10 +117,15 @@ int main() {
     mpu6050_read_raw(acceleration, gyro, &temp);
     double y_accel = acceleration[1];
     double y_accel_g = scaleToG(y_accel);
-    printf("Magnitude (m/s): %f\n", (y_accel_g * G_VALUE));
-    for (int i = 0; i < NUM_LEDS; ++i) {
-      put_pixel(urgb_u32(0, 100, 0));
+    printf("Magnitude [m/s]: %f\n", (y_accel_g * G_VALUE));
+    double y_accel_g_limited = boundValue(y_accel_g, 2, 1);
+    int shift_amount = (int)(y_accel_g_limited * 50);
+    printf("Shift: %d\n", (shift_amount));
+
+
+    for (int i = 0; i < NUM_LEDS / 2; ++i) {
+      put_pixel(urgb_u32(100 - shift_amount, 0, 100 + shift_amount));
     }
-    sleep_ms(100);
+    sleep_ms((int)(sample_rate_s * 1000));
   }
 }
