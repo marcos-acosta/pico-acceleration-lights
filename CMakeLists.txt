@@ -18,3 +18,4 @@ add_compile_options(-Wall
 
 # Hardware-specific examples in subdirectories:
 add_subdirectory(accelerationLights)
+add_subdirectory(ws2812)

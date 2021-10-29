@@ -48,7 +48,6 @@ static float curbValue(double val, float alpha) {
   return 1 - exp(-alpha * val);
 }
 
-#ifdef i2c_default
 static void mpu6050_reset() {
   // Two byte reset. First byte register, second byte data
   // There are a load more options to set up the device in different ways that could be added here
@@ -90,14 +89,9 @@ static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) {
 
   *temp = buffer[0] << 8 | buffer[1];
 }
-#endif
 
 int main() {
   stdio_init_all();
-#if !defined(i2c_default) || !defined(PICO_DEFAULT_I2C_SDA_PIN) || !defined(PICO_DEFAULT_I2C_SCL_PIN)
-  #warning i2c/mpu6050_i2c example requires a board with I2C pins
-  puts("Default I2C pins were not defined");
-#else
   // This example will use I2C0 on the default SDA and SCL pins (4, 5 on a Pico)
   i2c_init(i2c_default, 400 * 1000);
   gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
@@ -133,7 +127,5 @@ int main() {
 
       sleep_ms((int)(sample_rate_s * 1000));
   }
-
-#endif
   return 0;
 }
