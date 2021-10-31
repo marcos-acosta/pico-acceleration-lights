@@ -16,10 +16,17 @@
 #include "hardware/clocks.h"
 #include "ws2812.pio.h"
 
+#define MPU6050_GYRO_CONFIG 0x1b
+#define FS_SEL_250 0x00
+#define FS_SEL_500 0x08
+#define FS_SEL_1000 0x10
+#define FS_SEL_2000 0x18
+
+
 // By default these devices  are on bus address 0x68
 static int addr = 0x68;
 static const double G_VALUE = 9.81;
-static const double sample_rate_s = 0.1;
+static const double sample_rate_s = 0.01;
 static const uint8_t NUM_LEDS = 100;
 static const int PIN_TX = 0;
 
@@ -38,8 +45,12 @@ static double magnitude(int16_t a, int16_t b, int16_t c) {
   return sqrt(a * a + b * b + c * c);
 }
 
-static double scaleToG(double val) {
-  return val * 2 / 32767;
+static double scaleToG(double val, int scaleFactor) {
+  return val * scaleFactor / 32767;
+}
+
+static double scaleGyroToDegPerSec(double val, int scaleFactor) {
+  return val * scaleFactor / 32750;
 }
 
 static double boundValue(double val, double limit, double alpha) {
@@ -48,11 +59,13 @@ static double boundValue(double val, double limit, double alpha) {
   return outerSign * limit * (1 - exp(exponentialSign * alpha * val));
 }
 
-static void mpu6050_reset() {
+static void mpu6050_reset(uint8_t sensitivity) {
   // Two byte reset. First byte register, second byte data
   // There are a load more options to set up the device in different ways that could be added here
   uint8_t buf[] = {0x6B, 0x00};
+  uint8_t sensitivity_config[] = {MPU6050_GYRO_CONFIG, sensitivity};
   i2c_write_blocking(i2c_default, addr, buf, 2, false);
+  i2c_write_blocking(i2c_default, addr, sensitivity_config, 2, false);
 }
 
 static void mpu6050_read_raw(int16_t accel[3], int16_t gyro[3], int16_t *temp) {
@@ -102,7 +115,9 @@ int main() {
   // Make the I2C pins available to picotool
   bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
 
-  mpu6050_reset();
+  uint8_t sensitivity = FS_SEL_2000;
+  int sensitivity_scale = 2000;
+  mpu6050_reset(sensitivity);
 
   int16_t acceleration[3], gyro[3], temp;
 
@@ -115,16 +130,21 @@ int main() {
 
   while (1) {
     mpu6050_read_raw(acceleration, gyro, &temp);
-    double y_accel = acceleration[1];
-    double y_accel_g = scaleToG(y_accel);
-    printf("Magnitude [m/s]: %f\n", (y_accel_g * G_VALUE));
-    double y_accel_g_limited = boundValue(y_accel_g, 2, 1);
-    int shift_amount = (int)(y_accel_g_limited * 50);
-    printf("Shift: %d\n", (shift_amount));
 
+    double z_rotation = gyro[2];
+    int limit = 1000;
+    int max_brightness = 255;
+    printf("Raw value: %f\n", z_rotation);
+    double z_rotation_dps = scaleGyroToDegPerSec(z_rotation, sensitivity_scale);
+    printf("Deg/s: %f\n", z_rotation_dps);
+    double z_rotation_dps_bounded = fmin(z_rotation_dps, limit);
+    printf("Deg/s (bounded): %f\n", z_rotation_dps_bounded);
+    int shift_amount = fabs((int)(z_rotation_dps_bounded * max_brightness / limit));
+    printf("Shift: %d\n", shift_amount);
+    printf("\n");
 
     for (int i = 0; i < NUM_LEDS / 2; ++i) {
-      put_pixel(urgb_u32(100 - shift_amount, 0, 100 + shift_amount));
+      put_pixel(urgb_u32(0, shift_amount, shift_amount/2));
     }
     sleep_ms((int)(sample_rate_s * 1000));
   }

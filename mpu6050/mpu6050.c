@@ -35,20 +35,7 @@
 
 // By default these devices  are on bus address 0x68
 static int addr = 0x68;
-static const double G_VALUE = 9.81;
 static const double sample_rate_s = 0.1;
-
-static double magnitude(int16_t a, int16_t b, int16_t c) {
-  return sqrt(a * a + b * b + c * c);
-}
-
-static double scaleToG(double val) {
-  return val * 2 / 32767;
-}
-
-static float curbValue(double val, float alpha) {
-  return 1 - exp(-alpha * val);
-}
 
 static void mpu6050_reset() {
   // Two byte reset. First byte register, second byte data
@@ -110,22 +97,8 @@ int main() {
   while (1) {
       mpu6050_read_raw(acceleration, gyro, &temp);
 
-      /*
-      // These are the raw numbers from the chip, so will need tweaking to be really useful.
-      // See the datasheet for more information
       printf("Acc. X = %d, Y = %d, Z = %d\n", acceleration[0], acceleration[1], acceleration[2]);
       printf("Gyro. X = %d, Y = %d, Z = %d\n", gyro[0], gyro[1], gyro[2]);
-      // Temperature is simple so use the datasheet calculation to get deg C.
-      // Note this is chip temperature.
-      printf("Temp. = %f\n", (temp / 340.0) + 36.53);
-      */
-
-      // double mag = magnitude(acceleration[0], acceleration[1], acceleration[2]);
-      // printf("Magnitude (raw): %f\n", (mag));
-      double y_accel = acceleration[1];
-      double y_accel_g = scaleToG(y_accel);
-      printf("Magnitude (m/s): %f\n", (y_accel_g * G_VALUE));
-      printf("\n");
 
       sleep_ms((int)(sample_rate_s * 1000));
   }
