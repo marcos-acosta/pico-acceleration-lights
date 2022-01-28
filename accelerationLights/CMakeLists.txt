@@ -9,5 +9,5 @@ pico_generate_pio_header(accelerationLights ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio
 
 target_sources(accelerationLights PRIVATE accelerationLights.c)
 
-target_link_libraries(accelerationLights PRIVATE pico_stdlib hardware_pio hardware_i2c)
+target_link_libraries(accelerationLights PRIVATE pico_stdlib hardware_pio hardware_i2c hardware_adc)
 pico_add_extra_outputs(accelerationLights)
